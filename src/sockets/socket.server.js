@@ -2,6 +2,7 @@ const { Server } = require("socket.io");
 const cookie = require("cookie");
 const jwt = require("jsonwebtoken");
 const userModel = require("../models/user.model");
+const messageModel = require("../models/message.model");
 const aiService = require("../services/ai.service");
 
 function initSocketServer(httpServer) {
@@ -38,12 +39,31 @@ function initSocketServer(httpServer) {
     socket.on("ai-message", async (messagePayload) => {
         
         try {
-            console.log(messagePayload);
-            const response = await aiService.generateResponse(messagePayload.content);
+            // Parse payload if it's a string
+            const payload = typeof messagePayload === 'string' ? JSON.parse(messagePayload) : messagePayload;
+            
+            console.log("Parsed payload:", payload);
+
+            await messageModel.create({
+                user: socket.user._id,
+                chat: payload.chat,
+                content: payload.content,
+                role: "user"
+            })
+
+            const response = await aiService.generateResponse(payload.content);
+
+            await messageModel.create({
+                user: socket.user._id,
+                chat: payload.chat,
+                content: response,
+                role: "model"
+            })
+
 
             socket.emit("ai-response", { 
                 content: response,
-                chat: messagePayload.chat
+                chat: payload.chat
             });
         } catch (error) {
             console.error("AI Service Error:", error.message);
