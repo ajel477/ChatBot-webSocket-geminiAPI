@@ -1,35 +1,202 @@
-import { useState } from "react";
-import { ArrowUp } from "lucide-react";
-import MessageBubble from "./MessageBubble";
+import { useEffect, useRef, useState } from "react";
+import { ArrowUp, Loader } from "lucide-react";
 
-function ChatWindow() {
+import MessageBubble from "./MessageBubble";
+import socket from "../services/socket";
+import api from "../services/api";
+
+function ChatWindow({ chatId }) {
 
   const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [error, setError] = useState(null);
+  const [chatTitle, setChatTitle] = useState("Chat");
+  const messagesEndRef = useRef(null);
 
-  const messages = [
-    {
-      role: "model",
-      content:
-        "Arey bhai 😄 Main Aurex hoon. Kya scene hai?"
-    },
-    {
-      role: "user",
-      content:
-        "JWT ko beginner friendly way mein explain karo"
-    },
-    {
-      role: "model",
-      content:
-        "Simple 😄 JWT ek digital identity card ki tarah hota hai jo backend ko batata hai ki user authenticated hai."
+  // Auto scroll to bottom when new messages arrive
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Load chat messages when chatId changes
+  useEffect(() => {
+    if (!chatId) {
+      setMessages([]);
+      setChatTitle("Chat");
+      return;
     }
-  ];
+
+    loadChatMessages();
+  }, [chatId]);
+
+  // Load previous messages for a chat
+  const loadChatMessages = async () => {
+    try {
+      setLoadingMessages(true);
+      setMessages([]);
+      setError(null);
+
+      console.log("📥 Loading messages for chat:", chatId);
+      
+      const response = await api.get(`/chat/${chatId}/messages`);
+      
+      const formattedMessages = response.data.messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        _id: msg._id
+      }));
+      
+      setMessages(formattedMessages);
+      console.log("✅ Loaded", formattedMessages.length, "messages");
+      
+      // Get chat title
+      const chatResponse = await api.get(`/chat/${chatId}`);
+      setChatTitle(chatResponse.data.chat.title || "Chat");
+      
+    } catch (err) {
+      console.error("❌ Error loading messages:", err);
+      setError("Failed to load chat history");
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+  // Socket listeners for real-time messaging
+  useEffect(() => {
+    console.log("🔌 Setting up socket listeners");
+    
+    // Check socket connection status
+    if (socket.connected) {
+      console.log("✅ Socket already connected");
+    } else {
+      console.log("⏳ Socket not connected yet");
+    }
+
+    socket.on("connect", () => {
+      console.log("✅ Socket connected - ID:", socket.id);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("❌ Socket disconnected");
+    });
+
+    socket.on("ai-stream", (data) => {
+
+  console.log("📡 Streaming chunk received");
+
+  setMessages((prev) => {
+
+    const updated = [...prev];
+
+    const lastMessage =
+      updated[updated.length - 1];
+
+    // If AI message already exists,
+    // update progressively
+
+    if (lastMessage?.role === "model") {
+
+      lastMessage.content = data.content;
+
+      return [...updated];
+    }
+
+    // Otherwise create new AI message
+
+    return [
+      ...updated,
+      {
+        role: "model",
+        content: data.content
+      }
+    ];
+
+  });
+
+});
+
+socket.on("ai-stream-end", () => {
+
+  console.log("✅ Stream finished");
+
+  setIsLoading(false);
+
+  window.dispatchEvent(
+    new Event("chat-updated")
+  );
+
+});
+
+    socket.on("chat-title-updated", (data) => {
+      if (!data?.chat || data.chat !== chatId) return;
+      console.log("✅ Chat title updated via socket:", data.title);
+      setChatTitle(data.title);
+      window.dispatchEvent(new Event("chat-updated"));
+    });
+
+    // Listen for errors
+    socket.on("ai-error", (data) => {
+      console.error("❌ AI Error:", data);
+      setError(data.message || "An error occurred");
+      setIsLoading(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "error",
+          content: data.message || "Failed to generate response",
+        },
+      ]);
+    });
+
+    // Cleanup listeners on unmount
+    return () => {
+      socket.off("connect");
+      socket.off("disconnect");
+      socket.off("ai-stream");
+      socket.off("ai-stream-end");
+      socket.off("chat-title-updated");
+      socket.off("ai-error");
+    };
+  }, [chatId]);
 
   function handleSendMessage(e) {
     e.preventDefault();
 
-    console.log(message);
+    if (!message.trim() || !chatId) {
+      console.log("⚠️  Cannot send: chatId exists?", !!chatId, "message?", !!message.trim());
+      return;
+    }
+
+    console.log("📨 Sending message to backend");
+    console.log("📝 Message:", message);
+    console.log("🆔 Chat ID:", chatId);
+
+    // Add user message to UI
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        content: message,
+      },
+    ]);
+
+    // Emit message to backend via socket
+    console.log("🚀 Emitting ai-message event...");
+    socket.emit("ai-message", {
+      content: message,
+      chat: chatId,
+    });
+    console.log("✅ ai-message emitted");
 
     setMessage("");
+    setIsLoading(true);
+    setError(null);
   }
 
   return (
@@ -47,7 +214,7 @@ function ChatWindow() {
 
           <div>
             <h1 className="text-xl font-semibold text-white">
-              Aurex AI
+              {chatTitle}
             </h1>
 
             <p className="text-sm text-zinc-400 mt-1">
@@ -69,13 +236,53 @@ function ChatWindow() {
 
         <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
 
+          {loadingMessages && (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="animate-spin" size={24} />
+                <p className="text-zinc-400">Loading chat history...</p>
+              </div>
+            </div>
+          )}
+
+          {!chatId && !loadingMessages && (
+            <div className="text-center py-12">
+              <p className="text-zinc-400 text-lg">
+                Start a new chat to begin messaging
+              </p>
+            </div>
+          )}
+
+          {messages.length === 0 && chatId && !isLoading && !loadingMessages && (
+            <div className="text-center py-12">
+              <p className="text-zinc-400 text-lg">
+                No messages yet. Start typing to chat with Aurex!
+              </p>
+            </div>
+          )}
+
           {messages.map((msg, index) => (
             <MessageBubble
-              key={index}
+              key={msg._id || index}
               role={msg.role}
               content={msg.content}
             />
           ))}
+
+          {isLoading && (
+            <div className="flex items-center gap-2 text-zinc-400">
+              <Loader className="animate-spin" size={18} />
+              <span>Aurex is thinking...</span>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-900/20 border border-red-900/50 rounded-lg p-3">
+              <p className="text-red-400 text-sm">{error}</p>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
 
         </div>
 
@@ -122,6 +329,7 @@ function ChatWindow() {
               />
 
               <button
+                disabled={isLoading || !chatId || !message.trim()}
                 className="
                   w-10
                   h-10
@@ -136,9 +344,15 @@ function ChatWindow() {
                   hover:scale-105
                   transition
                   shrink-0
+                  disabled:opacity-50
+                  disabled:cursor-not-allowed
                 "
               >
-                <ArrowUp size={18} />
+                {isLoading ? (
+                  <Loader size={18} className="animate-spin" />
+                ) : (
+                  <ArrowUp size={18} />
+                )}
               </button>
 
             </div>

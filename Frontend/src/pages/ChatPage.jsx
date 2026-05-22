@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useParams } from "react-router-dom";
 import { Menu } from "lucide-react";
 
 import ChatSidebar from "../components/ChatSidebar";
@@ -7,6 +8,7 @@ import ChatWindow from "../components/ChatWindow";
 function ChatPage() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { chatId } = useParams();
 
   return (
     <div className="h-screen bg-black text-white flex overflow-hidden relative">
@@ -77,7 +79,7 @@ function ChatPage() {
 
         </div>
 
-        <ChatWindow />
+        <ChatWindow chatId={chatId} />
 
       </div>
 

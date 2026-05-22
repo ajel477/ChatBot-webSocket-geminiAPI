@@ -118,6 +118,33 @@ ${content}
     return response.text;
 }
 
+async function generateChatTitle(message) {
+
+    const prompt = `
+    Generate a very short chat title
+    based on this user message.
+
+    Rules:
+    - Maximum 4 words
+    - No quotes
+    - No punctuation
+    - Professional and concise
+
+    User message:
+    ${message}
+    `;
+
+    const response = await ai.models.generateContent({
+        model: "models/gemini-2.5-flash",
+        contents: [{
+            role: "user",
+            parts: [{ text: prompt }]
+        }]
+    });
+
+    return response.text.trim();
+}
+
 async function generateVector(content) {
     try {
 
@@ -152,4 +179,4 @@ async function generateVector(content) {
     }
 }
 
-module.exports = { generateResponse, generateVector };
+module.exports = { generateResponse, generateVector, generateChatTitle };

@@ -3,12 +3,18 @@ const cookie = require("cookie");
 const jwt = require("jsonwebtoken");
 const userModel = require("../models/user.model");
 const messageModel = require("../models/message.model");
+const chatModel = require("../models/chat.model");
 const aiService = require("../services/ai.service");
 const { createMemory, queryMemory } = require('../services/vector.service.js');
 
 function initSocketServer(httpServer) {
 
-    const io = new Server(httpServer, {});
+    const io = new Server(httpServer, {
+        cors: {
+            origin: "http://localhost:5173",
+            credentials: true
+        }
+    });
 
 //socket.io auth middlware
     io.use(async(socket, next) => {
@@ -24,6 +30,7 @@ function initSocketServer(httpServer) {
             const decoded = jwt.verify(cookies.token, process.env.JWT_SECRET);
             const user = await userModel.findById(decoded.id);
             socket.user = user;
+            console.log("✅ Socket authenticated for user:", user._id);
             next();
 
         }catch (error) {
@@ -35,15 +42,39 @@ function initSocketServer(httpServer) {
 
   io.on("connection", (socket) => {
 
-    console.log(socket.user);
+    console.log("✅ Socket connected - User:", socket.user?._id);
+    console.log("📍 Socket ID:", socket.id);
     
     socket.on("ai-message", async (messagePayload) => {
         
         try {
+            console.log("📨 AI Message received from socket:", socket.id);
             // Parse payload if it's a string
             const payload = typeof messagePayload === 'string' ? JSON.parse(messagePayload) : messagePayload;
             
-            console.log("Parsed payload:", payload);
+            console.log("✅ Parsed payload:", payload);
+
+            const currentChat = await chatModel.findById(payload.chat);
+
+let generatedTitle;
+
+if (
+    currentChat &&
+    (
+        !currentChat.title ||
+        currentChat.title === "New Chat"
+    )
+) {
+
+    generatedTitle = await aiService.generateChatTitle(payload.content);
+    currentChat.title = generatedTitle;
+    await currentChat.save();
+    console.log("✅ Chat title updated:", generatedTitle);
+}
+
+            console.log("📌 Chat ID:", payload.chat);
+            console.log("📌 User ID:", socket.user._id);
+            console.log("📝 Message content:", payload.content);
 
             // Run MongoDB save and vector generation in parallel
             const [savedMessage, userVector] = await Promise.all([
@@ -66,7 +97,7 @@ function initSocketServer(httpServer) {
                chat: payload.chat,
                role: "user"
     },
-    messageId: new Date().toISOString()
+    messageId: savedMessage._id.toString()
 });
 
            // Option 2: Get memories from ALL CHATS of the same user (Cross-chat memory)
@@ -105,11 +136,57 @@ const shortTermContext = recentMessages
     shortTermContext
 );
 
+            console.log("✅ AI Response generated, sending back to client");
+            
+            // Update chat lastActivity timestamp
+            await chatModel.updateOne(
+                { _id: payload.chat },
+                { lastActivity: new Date() }
+            );
+            console.log("📅 Chat lastActivity updated");
+            
             // Emit response to client immediately
-            socket.emit("ai-response", { 
-                content: response,
-                chat: payload.chat
-            });
+            // STREAM RESPONSE WORD-BY-WORD
+
+const words = response.split(" ");
+
+let streamedText = "";
+
+for (const word of words) {
+
+    streamedText += word + " ";
+
+    socket.emit("ai-stream", {
+        content: streamedText,
+        chat: payload.chat,
+        title: generatedTitle || currentChat?.title
+    });
+
+    // Streaming speed
+    await new Promise((resolve) =>
+        setTimeout(resolve, 25)
+    );
+}
+
+// Streaming finished
+
+socket.emit("ai-stream-end", {
+    chat: payload.chat
+});
+
+console.log("✅ AI stream completed");
+
+
+// Update sidebar title instantly
+
+if (generatedTitle) {
+
+    socket.emit("chat-title-updated", {
+        chat: payload.chat,
+        title: generatedTitle
+    });
+
+}
 
             // Save AI response to DB and generate vector in the BACKGROUND (don't wait)
             Promise.all([
@@ -138,12 +215,14 @@ const shortTermContext = recentMessages
             });
 
         } catch (error) {
-            console.error("AI Service Error:", error.message);
+            console.error("❌ AI Service Error:", error.message);
+            console.error("❌ Error stack:", error.stack);
             socket.emit("ai-error", {
-                message: "Failed to generate response",
+                message: "Model facing heavy load! Please try again shortly.",
                 error: error.message,
                 chat: messagePayload.chat
             });
+            console.log("❌ ai-error event emitted to client:", socket.id);
         }
     })
 })

@@ -9,8 +9,10 @@ function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LoginPage />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/chat" element={<ChatPage />} />
+        <Route path="/chat/:chatId" element={<ChatPage />} />
       </Routes>
     </BrowserRouter>
   );

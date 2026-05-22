@@ -65,4 +65,52 @@ async function loginUser(req, res) {
     })
 }
 
-module.exports = { registerUser, loginUser };
+async function getProfile(req, res) {
+
+    try {
+
+        res.status(200).json({
+            user: {
+                _id: req.user._id,
+                fullName: req.user.fullName,
+                email: req.user.email
+            }
+        });
+
+    } catch (error) {
+
+        console.log(error);
+
+        res.status(500).json({
+            message: "Failed to fetch profile"
+        });
+    }
+}
+
+async function logoutUser(req, res) {
+
+    try {
+
+        res.clearCookie("token");
+
+        res.status(200).json({
+            message: "Logged out successfully"
+        });
+
+    } catch (error) {
+
+        console.log(error);
+
+        res.status(500).json({
+            message: "Logout failed"
+        });
+
+    }
+}
+
+module.exports = {
+    registerUser,
+    loginUser,
+    getProfile,
+    logoutUser
+};

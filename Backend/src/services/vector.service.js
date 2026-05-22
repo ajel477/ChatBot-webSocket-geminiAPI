@@ -50,4 +50,26 @@ async function queryMemory({ queryVector, limit = 5, metadata }) {
     return data?.matches || [];
 }
 
-module.exports = { createMemory, queryMemory };
+async function deleteMemory(messageIds) {
+
+    if (!messageIds || messageIds.length === 0) {
+        console.log("No message IDs to delete from Pinecone");
+        return;
+    }
+
+    try {
+        // Use correct Pinecone SDK method for batch deletion
+        await vector1.deleteMany(messageIds.map(id => ({ id })));
+        console.log(
+            "✅ Deleted vectors from Pinecone:",
+            messageIds.length
+        );
+    } catch (error) {
+        console.error("❌ Error deleting from Pinecone:", error.message);
+        console.error("Full error:", error);
+        // Don't throw - allow chat deletion to proceed even if Pinecone deletion fails
+        console.log("⚠️ Continuing with MongoDB deletion despite Pinecone error");
+    }
+}
+
+module.exports = { createMemory, queryMemory, deleteMemory };
