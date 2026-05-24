@@ -35,7 +35,7 @@ ${content}
 `;
 
     const response = await ai.models.generateContent({
-        model: "models/gemini-2.5-flash",
+        model: "models/gemini-3.5-flash",
         contents: [{
             role: "user",
             parts: [{ text: finalPrompt }]

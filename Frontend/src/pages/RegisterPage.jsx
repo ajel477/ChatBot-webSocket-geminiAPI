@@ -16,6 +16,8 @@ function RegisterPage() {
 
   const [loading, setLoading] = useState(false);
 
+
+
   async function handleRegister(e) {
     e.preventDefault();
 
