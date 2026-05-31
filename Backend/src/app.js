@@ -7,21 +7,22 @@ const path = require('path');
 
 const app = express(); //Server Instance
 
+const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: CLIENT_URL,
     credentials: true
 }));
 
 //middelewares
 app.use(express.json());
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
 module.exports = app;
