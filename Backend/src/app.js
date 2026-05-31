@@ -21,9 +21,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
 
-// Fallback for client-side routing: send `index.html` for unknown routes.
-// Use middleware instead of a route pattern to avoid path-to-regexp issues on some hosts.
-app.use((req, res) => {
+app.get('*name', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
