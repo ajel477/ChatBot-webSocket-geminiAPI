@@ -37,7 +37,7 @@ useEffect(() => {
   const fetchChats = async () => {
     try {
       setLoadingChats(true);
-      const response = await api.get("/chat");
+      const response = await api.get("/api/chat");
       console.log("✅ Fetched chats:", response.data.chats?.length || 0);
       setChats(response.data.chats || []);
     } catch (error) {
@@ -52,7 +52,7 @@ useEffect(() => {
 
   try {
 
-    const response = await api.get("/auth/profile");
+    const response = await api.get("/api/auth/profile");
 
     console.log("✅ User profile:", response.data.user);
 
@@ -70,7 +70,7 @@ useEffect(() => {
   const handleNewChat = async () => {
     try {
       setLoading(true);
-      const response = await api.post("/chat", {
+      const response = await api.post("/api/chat", {
         title: "New Chat"
       });
       
@@ -91,7 +91,7 @@ useEffect(() => {
 
     try {
       setDeletingChatId(chatIdToDelete);
-      await api.delete(`/chat/${chatIdToDelete}`);
+      await api.delete(`/api/chat/${chatIdToDelete}`);
       setChats((prev) => prev.filter((chat) => chat._id !== chatIdToDelete));
 
       if (chatId === chatIdToDelete) {
@@ -109,7 +109,7 @@ useEffect(() => {
 
   try {
 
-    await api.post("/auth/logout");
+    await api.post("/api/auth/logout");
 
     navigate("/login");
 

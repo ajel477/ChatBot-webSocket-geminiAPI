@@ -44,7 +44,7 @@ function ChatWindow({ chatId }) {
 
       console.log("📥 Loading messages for chat:", chatId);
       
-      const response = await api.get(`/chat/${chatId}/messages`);
+      const response = await api.get(`/api/chat/${chatId}/messages`);
       
       const formattedMessages = response.data.messages.map(msg => ({
         role: msg.role,
@@ -56,7 +56,7 @@ function ChatWindow({ chatId }) {
       console.log("✅ Loaded", formattedMessages.length, "messages");
       
       // Get chat title
-      const chatResponse = await api.get(`/chat/${chatId}`);
+      const chatResponse = await api.get(`/api/chat/${chatId}`);
       setChatTitle(chatResponse.data.chat.title || "Chat");
       
     } catch (err) {
