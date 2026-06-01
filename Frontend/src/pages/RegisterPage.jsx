@@ -29,7 +29,7 @@ function RegisterPage() {
       const firstName = nameParts[0] || "";
       const lastName = nameParts[1] || "";
 
-      await api.post("/auth/register", {
+      await api.post("/api/auth/register", {
         fullName: {
           firstName,
           lastName

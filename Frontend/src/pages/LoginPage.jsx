@@ -23,7 +23,7 @@ function LoginPage() {
 
       setLoading(true);
 
-      await api.post("/auth/login", {
+      await api.post("/api/auth/login", {
         email: formData.email,
         password: formData.password,
       });
