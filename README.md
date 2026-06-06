@@ -171,13 +171,13 @@ B->>P: Store Response Vector
 
 ---
 
-# Scrennshots
+# Screenshots
 
 [RegisterPage](./registerUI.png)
 
 [LoginPage](./loginUI.png)
 
-[RegisterPage](./chats.png)
+[ChatsPage](./chats.png)
 
 
 ## 🔐 Authentication Flow
@@ -497,7 +497,7 @@ socket.emit('ai-response', {
 
 #### 1. Clone Repository
 ```bash
-git clone https://github.com/yourusername/aurex-ai.git
+git clone https://github.com/ajel477/ChatBot-webSocket-geminiAPI
 cd aurex-ai
 ```
 
